@@ -1,0 +1,28 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model SurveyResponse {
+  id              String   @id @default(cuid())
+  fullName        String
+  phoneNumber     String
+  welcomeScore    Int
+  facilitiesScore Int
+  servicesScore   Int
+  recommendScore  Int
+  comment         String?
+  privacyConsent  Boolean  @default(false)
+  contactStatus   String   @default("PENDING")
+  internalNote    String?
+  contactedAt     DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([recommendScore])
+}
