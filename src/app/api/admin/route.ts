@@ -71,8 +71,9 @@ export async function GET(request: Request) {
         createdAt: item.createdAt.toISOString(),
       })),
     });
-  } catch {
-    return NextResponse.json({ error: "Não foi possível carregar os dados." }, { status: 500 });
+  } catch (e) {
+    // TEMP DIAGNÓSTICO: expõe a causa real do 500. REMOVER depois.
+    return NextResponse.json({ error: "Não foi possível carregar os dados.", debug: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }
 }
 
