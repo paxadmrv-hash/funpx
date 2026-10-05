@@ -73,7 +73,9 @@ export async function GET(request: Request) {
     });
   } catch (e) {
     // TEMP DIAGNÓSTICO: expõe a causa real do 500. REMOVER depois.
-    return NextResponse.json({ error: "Não foi possível carregar os dados.", debug: e instanceof Error ? e.message : String(e) }, { status: 500 });
+    const raw = process.env.DATABASE_URL ?? "";
+    const probe = { present: Boolean(raw), length: raw.length, first8: raw.slice(0, 8), startsOk: raw.startsWith("postgres") };
+    return NextResponse.json({ error: "Não foi possível carregar os dados.", debug: e instanceof Error ? e.message : String(e), probe }, { status: 500 });
   }
 }
 
