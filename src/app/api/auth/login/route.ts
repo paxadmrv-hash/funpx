@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { allowLogin } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
+    if (!await allowLogin(request)) {
+      return NextResponse.json({ error: "Muitas tentativas de login. Aguarde alguns minutos." }, { status: 429 });
+    }
     const body = await request.json();
     const email = typeof body.email === "string" ? body.email.trim() : "";
     const password = typeof body.password === "string" ? body.password : "";

@@ -1,11 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { blockCrossOrigin } from "@/lib/origin";
 
 async function isAuthorized() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  return Boolean(user);
+  if (!user) return false;
+  // Trava por e-mail: estar logado NÃO basta — precisa estar na lista de admins.
+  // Defina ADMIN_EMAILS no .env (separados por vírgula). Sem a env, cai no admin padrão.
+  const allowed = (process.env.ADMIN_EMAILS ?? "administrador@pax.com")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+  return allowed.includes((user.email ?? "").toLowerCase());
 }
 
 export async function GET(request: Request) {
@@ -69,15 +77,17 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  const originBlock = blockCrossOrigin(request);
+  if (originBlock) return originBlock;
   if (!await isAuthorized()) {
     return NextResponse.json({ error: "Acesso não autorizado." }, { status: 401 });
   }
   try {
     const body = await request.json();
-    const status = ["PENDING", "CONTACTED", "RESOLVED"].includes(body.contactStatus) ? body.contactStatus : "PENDING";
+    const status = ["PENDING", "CRITICAL", "CONTACTED", "RESOLVED"].includes(body.contactStatus) ? body.contactStatus : "PENDING";
     const response = await prisma.surveyResponse.update({
       where: { id: body.id },
-      data: { contactStatus: status, internalNote: typeof body.internalNote === "string" ? body.internalNote.trim() || null : null, contactedAt: status === "PENDING" ? null : new Date() },
+      data: { contactStatus: status, internalNote: typeof body.internalNote === "string" ? body.internalNote.trim() || null : null, contactedAt: status === "PENDING" || status === "CRITICAL" ? null : new Date() },
     });
     return NextResponse.json({ id: response.id, contactStatus: response.contactStatus, internalNote: response.internalNote });
   } catch {

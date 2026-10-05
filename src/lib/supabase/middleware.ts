@@ -16,6 +16,24 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Gate real: a página /admin e as rotas /api/admin exigem um ADMIN autenticado.
+  // Estar logado não basta — o e-mail precisa estar na allow-list (ADMIN_EMAILS).
+  const path = request.nextUrl.pathname;
+  const isProtected = path.startsWith("/admin") || path.startsWith("/api/admin");
+  const allowedAdmins = (process.env.ADMIN_EMAILS ?? "administrador@pax.com")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+  const isAdmin = Boolean(user) && allowedAdmins.includes((user!.email ?? "").toLowerCase());
+
+  if (isProtected && !isAdmin) {
+    if (path.startsWith("/api/")) {
+      return NextResponse.json({ error: "Acesso não autorizado." }, { status: 401 });
+    }
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+
   return response;
 }
